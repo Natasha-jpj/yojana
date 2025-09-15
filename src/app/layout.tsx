@@ -2,38 +2,28 @@
 import "./globals.css";
 import Image from "next/image";
 import Link from "next/link";
-
-// ✅ proper mobile viewport (Next App Router way)
-export const viewport = {
-  width: "device-width",
-  initialScale: 1,
-  maximumScale: 1,
-  viewportFit: "cover",
-};
+import { Suspense } from "react";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className="h-full">
-      {/* ✅ prevent horizontal scroll + respect mobile safe areas */}
-      <body className="m-0 p-0 min-h-[100svh] overflow-x-hidden antialiased">
-        <div
-          className="fixed z-[9999]"
-          style={{ top: "max(0.5rem, env(safe-area-inset-top))", left: "max(0.5rem, env(safe-area-inset-left))" }}
-        >
+      <body className="m-0 p-0">
+        <div className="fixed top-6 left-0 z-[9999]">
           <Link href="/?start=1" aria-label="Start plan" className="block">
             <Image
               src="/LOGO-removebg-preview.png"
               alt="Yojana logo"
-              width={160}
-              height={160}
+              width={200}
+              height={200}
               priority
-              // ✅ smaller on phones, bigger on larger screens
-              className="block object-contain w-24 h-24 sm:w-40 sm:h-40"
+              className="block w-auto object-contain object-left-top"
+              style={{ height: "10rem", width: "10rem" }}
             />
           </Link>
         </div>
 
-        {children}
+        {/* 👇 This boundary satisfies Next’s requirement for useSearchParams */}
+        <Suspense fallback={<div />}>{children}</Suspense>
       </body>
     </html>
   );
