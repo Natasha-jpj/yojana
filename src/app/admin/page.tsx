@@ -95,12 +95,10 @@ const bgUrl = "url('/background.jpg')";
 
 function fmt(dt?: string | Date) {
   if (!dt) return "—";
-  try {
-    return new Date(dt as any).toLocaleString();
-  } catch {
-    return String(dt);
-  }
+  const d = dt instanceof Date ? dt : new Date(dt);
+  return Number.isNaN(d.getTime()) ? "—" : d.toLocaleString();
 }
+
 function daysUntil(dt?: string) {
   if (!dt) return Infinity;
   const d = new Date(dt).getTime();
@@ -203,11 +201,13 @@ export default function AdminDashboard() {
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error || "Failed to fetch");
       setRows((json?.data as Registration[]) || []);
-    } catch (e: any) {
-      setErrorMsg(e?.message || "Something went wrong");
-    } finally {
-      setLoading(false);
-    }
+   } catch (e: unknown) {
+  const msg = e instanceof Error ? e.message : String(e);
+  setErrorMsg(msg);
+} finally {
+  setLoading(false);
+}
+
   }
 
   useEffect(() => {
@@ -250,18 +250,26 @@ export default function AdminDashboard() {
       );
     }
 
-    list.sort((a, b) => {
-      const dir = sortDir === "asc" ? 1 : -1;
-      const av =
-        sortKey === "name"
-          ? (a.name || "").toLowerCase()
-          : new Date((a as any)[sortKey] || 0).getTime();
-      const bv =
-        sortKey === "name"
-          ? (b.name || "").toLowerCase()
-          : new Date((b as any)[sortKey] || 0).getTime();
-      return av > bv ? dir : av < bv ? -dir : 0;
-    });
+list.sort((a, b) => {
+  const dir = sortDir === "asc" ? 1 : -1;
+
+  if (sortKey === "name") {
+    const cmp = (a.name?.toLowerCase() ?? "").localeCompare(
+      b.name?.toLowerCase() ?? ""
+    );
+    return cmp * dir;
+  }
+
+  const aVal = sortKey === "createdAt" ? a.createdAt : a.startDateTime;
+  const bVal = sortKey === "createdAt" ? b.createdAt : b.startDateTime;
+
+  const at = aVal ? new Date(aVal).getTime() : 0;
+  const bt = bVal ? new Date(bVal).getTime() : 0;
+
+  if (at === bt) return 0;
+  return at > bt ? dir : -dir;
+});
+
 
     return list;
   }, [rows, query, paymentFilter, sortKey, sortDir]);
@@ -378,11 +386,13 @@ export default function AdminDashboard() {
       const j = await res.json();
       if (!res.ok || !j?.ok) throw new Error(j?.error || "Email failed");
       showToast("success", "Email sent", `Confirmation email sent to ${r.email}.`);
-    } catch (e: any) {
-      showToast("error", "Email failed", e?.message || "Could not send email.");
-    } finally {
-      setSendingId(null);
-    }
+   } catch (e: unknown) {
+  const msg = e instanceof Error ? e.message : String(e);
+  alert(`Email error: ${msg}`);
+} finally {
+  setSendingId(null);
+}
+
   }
 
   // Delete — confirmed via custom dialog
@@ -401,13 +411,13 @@ export default function AdminDashboard() {
       if (!res.ok || !j?.success) throw new Error(j?.error || "Delete failed");
       setRows((prev) => prev.filter((x) => x._id !== confirmReg._id));
       showToast("success", "Deleted", "The registration has been removed.");
-    } catch (e: any) {
-      showToast("error", "Delete failed", e?.message || "Something went wrong.");
-    } finally {
-      setConfirmBusy(false);
-      setDeletingId(null);
-      setConfirmReg(null);
-    }
+   } catch (e: unknown) {
+  const msg = e instanceof Error ? e.message : String(e);
+  alert(`Delete failed: ${msg}`);
+} finally {
+  setDeletingId(null);
+}
+
   }
 
   return (

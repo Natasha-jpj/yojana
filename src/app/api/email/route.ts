@@ -30,11 +30,8 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({ ok: true, id: info.messageId });
-  } catch (err: any) {
-    console.error(err);
-    return NextResponse.json(
-      { ok: false, error: err?.message || "Email send failed" },
-      { status: 500 }
-    );
+   } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
 }

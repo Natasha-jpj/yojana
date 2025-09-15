@@ -25,6 +25,13 @@ function toPaymentFilter(v: string | null): "paid" | "pending" | undefined {
   return undefined;
 }
 
+/* Query typing to avoid `any` */
+type MongoRegex = { $regex: string; $options?: string };
+type RegistrationQuery = {
+  paymentConfirmed?: boolean;
+  $or?: Array<Record<string, MongoRegex>>;
+};
+
 /* -----------------------------
    GET  /api/yojana/registrations
    ?q=&payment=paid|pending&sortBy=createdAt|name|startDateTime&order=asc|desc&limit=&page=
@@ -44,13 +51,14 @@ export async function GET(req: NextRequest) {
       | "createdAt"
       | "name"
       | "startDateTime";
-    const order =
+    const order: 1 | -1 =
       (searchParams.get("order") || "desc").toLowerCase() === "asc" ? 1 : -1;
 
-    const query: any = {};
+    const query: RegistrationQuery = {};
     if (payment) query.paymentConfirmed = payment === "paid";
+
     if (q) {
-      const rx = { $regex: q, $options: "i" };
+      const rx: MongoRegex = { $regex: q, $options: "i" };
       query.$or = [
         { name: rx },
         { email: rx },
@@ -81,10 +89,11 @@ export async function GET(req: NextRequest) {
       pageSize: limit,
       total,
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Server error";
     console.error(err);
     return NextResponse.json(
-      { success: false, error: err?.message || "Server error" },
+      { success: false, error: message },
       { status: 500 }
     );
   }
@@ -97,11 +106,14 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     await dbConnect();
-    const body = await req.json();
+    const body: unknown = await req.json();
+
+    // Safe access helper
+    const getStr = (v: unknown): string => String(v ?? "").trim();
 
     // 1) Date & time (REQUIRED)
-    const startStr = String(body?.startDateTime || "").trim();
-    const endStr = String(body?.endDateTime || "").trim();
+    const startStr = getStr((body as Record<string, unknown>)?.startDateTime);
+    const endStr = getStr((body as Record<string, unknown>)?.endDateTime);
     const startMs = Date.parse(startStr);
     const endMs = Date.parse(endStr);
 
@@ -125,7 +137,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 2) Occasion (REQUIRED)
-    const occasion = String(body?.occasion || "");
+    const occasion = getStr((body as Record<string, unknown>)?.occasion);
     if (!isOneOf(occasion, Occasion)) {
       return NextResponse.json(
         { success: false, error: "Valid occasion is required" },
@@ -134,7 +146,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 3) Experience (REQUIRED)
-    const experience = String(body?.experience || "");
+    const experience = getStr((body as Record<string, unknown>)?.experience);
     if (!isOneOf(experience, Experience)) {
       return NextResponse.json(
         { success: false, error: "Valid experience is required" },
@@ -143,7 +155,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 4) Dining (REQUIRED)
-    const dining = String(body?.dining || "");
+    const dining = getStr((body as Record<string, unknown>)?.dining);
     if (!isOneOf(dining, Dining)) {
       return NextResponse.json(
         { success: false, error: "Valid dining is required" },
@@ -152,18 +164,18 @@ export async function POST(req: NextRequest) {
     }
 
     // 5) Dietary restrictions (optional)
-    const dietVeg = Boolean(body?.dietVeg);
-    const dietHalal = Boolean(body?.dietHalal);
-    const dietAllergies = body?.dietAllergies
-      ? String(body.dietAllergies).trim()
-      : "";
+    const dietVeg = Boolean((body as Record<string, unknown>)?.dietVeg);
+    const dietHalal = Boolean((body as Record<string, unknown>)?.dietHalal);
+    const dietAllergies = getStr(
+      (body as Record<string, unknown>)?.dietAllergies
+    );
 
     // 6) Personal touches (optional)
-    const flowers = Boolean(body?.flowers);
-    const cake = Boolean(body?.cake);
+    const flowers = Boolean((body as Record<string, unknown>)?.flowers);
+    const cake = Boolean((body as Record<string, unknown>)?.cake);
 
     // 7) Budget (REQUIRED)
-    const budget = String(body?.budget || "");
+    const budget = getStr((body as Record<string, unknown>)?.budget);
     if (!isOneOf(budget, Budget)) {
       return NextResponse.json(
         { success: false, error: "Valid budget is required" },
@@ -172,23 +184,23 @@ export async function POST(req: NextRequest) {
     }
 
     // 8) Personal note (optional)
-    const personalNote = body?.personalNote
-      ? String(body.personalNote).trim()
-      : "";
+    const personalNote = getStr(
+      (body as Record<string, unknown>)?.personalNote
+    );
 
     // 9) Customer details (REQUIRED: name, email, phone; optional emergency)
-    const name = String(body?.name || "").trim();
+    const name = getStr((body as Record<string, unknown>)?.name);
     if (name.length < 2) {
       return NextResponse.json(
         { success: false, error: "Name is required (min 2 chars)" },
         { status: 400 }
       );
     }
-    const email = String(body?.email || "").trim();
-    const phone = String(body?.phone || "").trim();
-    const emergencyContact = body?.emergencyContact
-      ? String(body.emergencyContact).trim()
-      : "";
+    const email = getStr((body as Record<string, unknown>)?.email);
+    const phone = getStr((body as Record<string, unknown>)?.phone);
+    const emergencyContact = getStr(
+      (body as Record<string, unknown>)?.emergencyContact
+    );
 
     const emailOk = /\S+@\S+\.\S+/.test(email);
     const phoneDigits = phone.replace(/\D/g, "");
@@ -206,7 +218,9 @@ export async function POST(req: NextRequest) {
     }
 
     // Payment flag (optional boolean)
-    const paymentConfirmed = Boolean(body?.paymentConfirmed);
+    const paymentConfirmed = Boolean(
+      (body as Record<string, unknown>)?.paymentConfirmed
+    );
 
     // Create
     const doc = await RegistrationModel.create({
@@ -230,10 +244,11 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({ success: true, data: doc }, { status: 201 });
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Server error";
     console.error(err);
     return NextResponse.json(
-      { success: false, error: err?.message || "Server error" },
+      { success: false, error: message },
       { status: 500 }
     );
   }

@@ -4,6 +4,7 @@ import { useMemo, useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Variants } from "framer-motion";
 import { useSearchParams, useRouter } from "next/navigation";
+import Image from "next/image";
 
 import {
   Card,
@@ -15,17 +16,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 /* ================= Types ================= */
 type Experience = "romantic-escape" | "adventure-date" | "mystery-box" | "";
-type Dining =
-  | ""
-  | "italian"
-  | "asian"
-  | "nepali-fusion"
-  | "continental"
-  | "surprise-me";
+type Dining = "" | "italian" | "asian" | "nepali-fusion" | "continental" | "surprise-me";
 type BudgetRange = "" | "tbd" | "3k" | "5k" | "10k";
 type FormState = {
   // 1) Date & Time
@@ -184,81 +178,6 @@ function Chip({
   );
 }
 
-function ChoiceCard({
-  id,
-  label,
-  value,
-  checked,
-  onChange,
-  subtitle,
-  emoji,
-}: {
-  id: string;
-  label: string;
-  subtitle?: string;
-  emoji?: string;
-  value: string;
-  checked: boolean;
-  onChange: (v: string) => void;
-}) {
-  return (
-    <motion.label
-      htmlFor={id}
-      className="cursor-pointer w-full"
-      whileHover={{ scale: 1.02 }}
-      whileTap={{ scale: 0.98 }}
-    >
-      <div
-        className={[
-          "rounded-2xl border p-4 sm:p-5 backdrop-blur",
-          checked
-            ? "border-amber-400 bg-gradient-to-r from-amber-500/25 to-stone-500/15 shadow-lg"
-            : "border-white/30 bg-white/15 hover:bg-white/25",
-          "transition-all duration-300 flex items-center gap-4",
-        ].join(" ")}
-        onClick={() => onChange(value)}
-      >
-        <motion.div
-          className="text-2xl"
-          animate={checked ? { scale: [1, 1.2, 1], rotate: [0, 5, -5, 0] } : {}}
-          transition={{ duration: 0.5 }}
-        >
-          {emoji}
-        </motion.div>
-        <div className="flex-1">
-          <div className="font-semibold text-white">{label}</div>
-          {subtitle ? (
-            <div className="text-sm text-white/80">{subtitle}</div>
-          ) : null}
-        </div>
-        {checked && (
-          <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ type: "spring", stiffness: 300 }}
-            className="w-5 h-5 rounded-full bg-amber-500 flex items-center justify-center"
-          >
-            <svg
-              className="w-3 h-3 text-white"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={3}
-                d="M5 13l4 4L19 7"
-              />
-            </svg>
-          </motion.div>
-        )}
-        <RadioGroupItem id={id} value={value} checked={checked} className="hidden" />
-      </div>
-    </motion.label>
-  );
-}
-
 function FloatingHearts() {
   return (
     <>
@@ -354,7 +273,9 @@ export default function RegisterQnA() {
   useEffect(() => {
     if (searchParams.get("start") === "1") {
       setStep(STEP_DATETIME);
-      try { window.scrollTo(0, 0); } catch {}
+      try {
+        window.scrollTo(0, 0);
+      } catch {}
       router.replace("/");
     }
   }, [searchParams, router]);
@@ -433,22 +354,15 @@ export default function RegisterQnA() {
         body: JSON.stringify(payload),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json?.error || "Failed");
-
-      if (typeof window !== "undefined") {
-        // const confetti = await import("canvas-confetti");
-        // confetti.default({
-        //   particleCount: 180,
-        //   spread: 75,
-        //   startVelocity: 35,
-        //   gravity: 0.9,
-        //   origin: { y: 0.6 },
-        //   colors: ["#d4af37", "#f2e8cf", "#b88b5a", "#8b5e34", "#fde4cf"],
-        // });
+      if (!res.ok) {
+        const msg = (json && typeof json.error === "string") ? json.error : "Failed";
+        throw new Error(msg);
       }
+
       setShowPopup(true);
-    } catch (e: any) {
-      alert(`Error: ${e.message}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Something went wrong";
+      alert(`Error: ${message}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -673,27 +587,26 @@ export default function RegisterQnA() {
                       )}
 
                       {/* 7) Budget */}
-             {step === STEP_BUDGET && (
-  <motion.div variants={item} className="flex gap-3 flex-wrap justify-center">
-    {(
-      [
-        ["tbd", "To be decided"],
-        ["3k", "₨3,000"],
-        ["5k", "₨5,000"],
-        ["10k", "₨10,000"],
-      ] as const
-    ).map(([val, label]) => (
-      <Chip
-        key={val}
-        active={data.budget === val}
-        onClick={() => setData((d) => ({ ...d, budget: val as BudgetRange }))}
-      >
-        {label}
-      </Chip>
-    ))}
-  </motion.div>
-)}
-
+                      {step === STEP_BUDGET && (
+                        <motion.div variants={item} className="flex gap-3 flex-wrap justify-center">
+                          {(
+                            [
+                              ["tbd", "To be decided"],
+                              ["3k", "₨3,000"],
+                              ["5k", "₨5,000"],
+                              ["10k", "₨10,000"],
+                            ] as const
+                          ).map(([val, label]) => (
+                            <Chip
+                              key={val}
+                              active={data.budget === val}
+                              onClick={() => setData((d) => ({ ...d, budget: val as BudgetRange }))}
+                            >
+                              {label}
+                            </Chip>
+                          ))}
+                        </motion.div>
+                      )}
 
                       {/* 8) Personal Note */}
                       {step === STEP_NOTE && (
@@ -760,10 +673,13 @@ export default function RegisterQnA() {
                           <div className="rounded-2xl border border-white/30 bg-white/10 p-4 backdrop-blur">
                             <div className="font-semibold mb-2 text-center">Scan to pay (QR)</div>
                             <div className="flex items-center justify-center">
-                              <img
+                              <Image
                                 src="/qr.png"
                                 alt="Payment QR"
+                                width={160}
+                                height={160}
                                 className="w-40 h-40 rounded-xl border border-white/30 bg-white/5 object-contain"
+                                priority
                               />
                             </div>
                             <p className="text-xs text-white/70 text-center mt-2">
@@ -825,10 +741,10 @@ export default function RegisterQnA() {
                         <Button
                           type="button"
                           onClick={() => (step === STEP_PAYMENT ? submit() : next())}
-                          disabled={!canNext}
+                          disabled={!canNext || (step === STEP_PAYMENT && isSubmitting)}
                           className="bg-gradient-to-r from-amber-600 to-stone-600 hover:from-amber-700 hover:to-stone-700 disabled:opacity-50 rounded-full px-8 shadow-lg"
                         >
-                          {step === STEP_PAYMENT ? "Finish →" : "Next →"}
+                          {step === STEP_PAYMENT ? (isSubmitting ? "Finishing…" : "Finish →") : "Next →"}
                         </Button>
                       </motion.div>
                     ) : (
@@ -851,96 +767,88 @@ export default function RegisterQnA() {
       )}
 
       {/* Success Popup */}
-      {/* Success Popup */}
-{/* Success Popup */}
-{/* Success Popup */}
-{/* Success Popup */}
-<AnimatePresence>
-  {showPopup && (
-    <motion.div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-    >
-      <motion.div
-        className="relative w-[340px] h-[220px]"
-        initial={{ scale: 0.95, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.97, opacity: 0 }}
-        transition={{ duration: 0.25, ease: "easeOut" }}
-      >
-        {/* Envelope body (decorative) */}
-        <div
-          className="absolute inset-0 rounded-md border shadow-lg z-0 pointer-events-none"
-          style={{
-            background: "linear-gradient(to bottom, #fffdf8, #f6e7c9)",
-            borderColor: "rgba(184,139,90,0.5)",
-          }}
-        />
-
-        {/* Inner letter / content (interactive) */}
-        <motion.div
-          className="absolute inset-x-3 bottom-3 top-10 rounded-md px-4 pt-6 pb-4 text-center z-20"
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.7, duration: 0.3, ease: "easeOut" }}
-          style={{
-            background: "#fffefc",
-            border: "1px solid rgba(162, 123, 80, 0.4)",
-          }}
-        >
-          <h2 className="text-base font-semibold text-amber-800 mb-1">💌 Confirmation</h2>
-          <p className="text-sm text-stone-700">
-            <span className="font-medium">Your Yojana is set.</span><br />
-            The mystery unfolds on{" "}
-            <span className="font-semibold">
-              {data.startDateTime
-                ? new Date(data.startDateTime).toLocaleDateString()
-                : "your chosen date"}
-            </span>.
-          </p>
-
-          <Button
-            type="button"
-            onClick={() => setShowPopup(false)}
-            className="mt-4 rounded-full px-6 bg-gradient-to-r from-amber-600 to-stone-600 hover:from-amber-700 hover:to-stone-700 text-white"
+      <AnimatePresence>
+        {showPopup && (
+          <motion.div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
           >
-            Close
-          </Button>
-        </motion.div>
+            <motion.div
+              className="relative w-[340px] h-[220px]"
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.97, opacity: 0 }}
+              transition={{ duration: 0.25, ease: "easeOut" }}
+            >
+              {/* Envelope body (decorative) */}
+              <div
+                className="absolute inset-0 rounded-md border shadow-lg z-0 pointer-events-none"
+                style={{
+                  background: "linear-gradient(to bottom, #fffdf8, #f6e7c9)",
+                  borderColor: "rgba(184,139,90,0.5)",
+                }}
+              />
 
-        {/* Top flap (decorative) */}
-        <motion.div
-          className="absolute left-0 right-0 top-0 h-1/2 origin-top z-10 pointer-events-none"
-          style={{
-            background: "linear-gradient(to bottom, #f6d98c, #eac771)",
-            clipPath: "polygon(0 0, 100% 0, 50% 100%)",
-            borderBottom: "1px solid rgba(184,139,90,0.5)",
-            backfaceVisibility: "hidden",
-          }}
-          initial={{ rotateX: 0 }}
-          animate={{ rotateX: 160 }}
-          transition={{ duration: 0.6, ease: "easeInOut" }}
-        />
+              {/* Inner letter / content (interactive) */}
+              <motion.div
+                className="absolute inset-x-3 bottom-3 top-10 rounded-md px-4 pt-6 pb-4 text-center z-20"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.7, duration: 0.3, ease: "easeOut" }}
+                style={{
+                  background: "#fffefc",
+                  border: "1px solid rgba(162, 123, 80, 0.4)",
+                }}
+              >
+                <h2 className="text-base font-semibold text-amber-800 mb-1">💌 Confirmation</h2>
+                <p className="text-sm text-stone-700">
+                  <span className="font-medium">Your Yojana is set.</span><br />
+                  The mystery unfolds on{" "}
+                  <span className="font-semibold">
+                    {data.startDateTime
+                      ? new Date(data.startDateTime).toLocaleDateString()
+                      : "your chosen date"}
+                  </span>.
+                </p>
 
-        {/* Side folds (decorative) */}
-        <div
-          className="absolute inset-0 z-[5] pointer-events-none"
-          style={{
-            background:
-              "linear-gradient(135deg, rgba(0,0,0,0.05), transparent 40%), linear-gradient(225deg, rgba(0,0,0,0.05), transparent 40%)",
-            mixBlendMode: "multiply",
-          }}
-        />
-      </motion.div>
-    </motion.div>
-  )}
-</AnimatePresence>
+                <Button
+                  type="button"
+                  onClick={() => setShowPopup(false)}
+                  className="mt-4 rounded-full px-6 bg-gradient-to-r from-amber-600 to-stone-600 hover:from-amber-700 hover:to-stone-700 text-white"
+                >
+                  Close
+                </Button>
+              </motion.div>
 
+              {/* Top flap (decorative) */}
+              <motion.div
+                className="absolute left-0 right-0 top-0 h-1/2 origin-top z-10 pointer-events-none"
+                style={{
+                  background: "linear-gradient(to bottom, #f6d98c, #eac771)",
+                  clipPath: "polygon(0 0, 100% 0, 50% 100%)",
+                  borderBottom: "1px solid rgba(184,139,90,0.5)",
+                  backfaceVisibility: "hidden",
+                }}
+                initial={{ rotateX: 0 }}
+                animate={{ rotateX: 160 }}
+                transition={{ duration: 0.6, ease: "easeInOut" }}
+              />
 
-
-
+              {/* Side folds (decorative) */}
+              <div
+                className="absolute inset-0 z-[5] pointer-events-none"
+                style={{
+                  background:
+                    "linear-gradient(135deg, rgba(0,0,0,0.05), transparent 40%), linear-gradient(225deg, rgba(0,0,0,0.05), transparent 40%)",
+                  mixBlendMode: "multiply",
+                }}
+              />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <SupportFab />
     </div>
