@@ -8,7 +8,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className="h-full">
       <body className="m-0 p-0">
-        <div className="fixed top-6 left-0 z-[9999]">
+        {/* Fixed logo, responsive sizes, respects safe areas */}
+        <div
+          className="fixed left-2 top-2 md:left-4 md:top-4 z-[9999]"
+          style={{
+            left: "max(0.5rem, env(safe-area-inset-left))",
+            top: "max(0.5rem, env(safe-area-inset-top))",
+          }}
+        >
           <Link href="/?start=1" aria-label="Start plan" className="block">
             <Image
               src="/LOGO-removebg-preview.png"
@@ -16,8 +23,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               width={200}
               height={200}
               priority
-              className="block w-auto object-contain object-left-top"
-              style={{ height: "10rem", width: "10rem" }}
+              sizes="(max-width:640px) 48px,
+                     (max-width:768px) 80px,
+                     (max-width:1024px) 112px,
+                     144px"
+              className="
+                block h-auto w-12         /* phones ~48px */
+                sm:w-20                   /* small tablets ~80px */
+                md:w-28                   /* laptops ~112px */
+                lg:w-36                   /* desktops ~144px */
+                object-contain object-left-top
+              "
             />
           </Link>
         </div>
