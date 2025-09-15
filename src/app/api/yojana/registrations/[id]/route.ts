@@ -9,10 +9,7 @@ import RegistrationModel, {
 } from "@/models/YojanaRegistration";
 
 /* ---------- helpers ---------- */
-function isOneOf<T extends readonly string[]>(
-  v: unknown,
-  list: T
-): v is T[number] {
+function isOneOf<T extends readonly string[]>(v: unknown, list: T): v is T[number] {
   return typeof v === "string" && (list as readonly string[]).includes(v);
 }
 function parseDateMaybe(v: unknown): Date | undefined {
@@ -20,36 +17,38 @@ function parseDateMaybe(v: unknown): Date | undefined {
   const ms = Date.parse(v);
   return Number.isNaN(ms) ? undefined : new Date(ms);
 }
+function errMessage(e: unknown, fallback = "Server error"): string {
+  return e instanceof Error ? e.message : fallback;
+}
 
-/* Shape of allowed updates (removes `any`) */
-type RegistrationUpdate = Partial<{
-  startDateTime: Date;
-  endDateTime: Date;
-  occasion: (typeof Occasion)[number];
-  experience: (typeof Experience)[number];
-  dining: (typeof Dining)[number];
-  budget: (typeof Budget)[number];
-  dietVeg: boolean;
-  dietHalal: boolean;
-  dietAllergies: string;
-  flowers: boolean;
-  cake: boolean;
-  personalNote: string;
-  name: string;
-  phone: string;
-  email: string;
-  emergencyContact: string;
-  paymentConfirmed: boolean;
-}>;
+type ParamsCtx = { params: Promise<{ id: string }> };
+
+type UpdateBody = {
+  startDateTime?: string;
+  endDateTime?: string;
+  occasion?: typeof Occasion[number];
+  experience?: typeof Experience[number];
+  dining?: typeof Dining[number];
+  budget?: typeof Budget[number];
+  dietVeg?: boolean;
+  dietHalal?: boolean;
+  dietAllergies?: string;
+  flowers?: boolean;
+  cake?: boolean;
+  personalNote?: string;
+  name?: string;
+  phone?: string;
+  email?: string;
+  emergencyContact?: string;
+  paymentConfirmed?: boolean;
+};
 
 /* ---------- GET /:id ---------- */
-export async function GET(
-  _req: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(_req: NextRequest, ctx: ParamsCtx) {
   try {
+    const { id } = await ctx.params;
     await dbConnect();
-    const doc = await RegistrationModel.findById(params.id).lean();
+    const doc = await RegistrationModel.findById(id).lean();
     if (!doc) {
       return NextResponse.json(
         { success: false, error: "Registration not found" },
@@ -58,47 +57,47 @@ export async function GET(
     }
     return NextResponse.json({ success: true, data: doc });
   } catch (e: unknown) {
-    const message = e instanceof Error ? e.message : "Server error";
-    console.error("GET /registrations/:id", e);
-    return NextResponse.json(
-      { success: false, error: message },
-      { status: 500 }
-    );
-  }
+  console.error("GET /registrations/:id", e);
+  return NextResponse.json(
+    { success: false, error: errMessage(e) },
+    { status: 500 }
+  );
+}
 }
 
 /* ---------- PATCH /:id (partial update) ---------- */
-export async function PATCH(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function PATCH(req: NextRequest, ctx: ParamsCtx) {
   try {
+    const { id } = await ctx.params;
     await dbConnect();
-    const body = await req.json(); // inbound type is unknown/any from Next.js, but we validate below
-    const update: RegistrationUpdate = {};
+
+    const body = (await req.json()) as UpdateBody;
+    const update: Record<string, unknown> = {};
 
     // Dates (optional)
     if (body.startDateTime !== undefined) {
       const d = parseDateMaybe(body.startDateTime);
-      if (!d)
+      if (!d) {
         return NextResponse.json(
           { success: false, error: "Invalid startDateTime" },
           { status: 400 }
         );
+      }
       update.startDateTime = d;
     }
     if (body.endDateTime !== undefined) {
       const d = parseDateMaybe(body.endDateTime);
-      if (!d)
+      if (!d) {
         return NextResponse.json(
           { success: false, error: "Invalid endDateTime" },
           { status: 400 }
         );
+      }
       update.endDateTime = d;
     }
     if (
-      update.startDateTime &&
-      update.endDateTime &&
+      update.startDateTime instanceof Date &&
+      update.endDateTime instanceof Date &&
       +update.endDateTime <= +update.startDateTime
     ) {
       return NextResponse.json(
@@ -167,6 +166,7 @@ export async function PATCH(
       }
       update.name = name;
     }
+
     if (body.phone !== undefined) {
       const phone = String(body.phone || "").trim();
       const digits = phone.replace(/\D/g, "");
@@ -178,16 +178,19 @@ export async function PATCH(
       }
       update.phone = phone;
     }
+
     if (body.email !== undefined) {
       const email = String(body.email || "").trim();
       const ok = email ? /\S+@\S+\.\S+/.test(email) : true;
-      if (!ok)
+      if (!ok) {
         return NextResponse.json(
           { success: false, error: "Invalid email" },
           { status: 400 }
         );
+      }
       update.email = email;
     }
+
     if (body.emergencyContact !== undefined) {
       update.emergencyContact = String(body.emergencyContact || "").trim();
     }
@@ -196,7 +199,7 @@ export async function PATCH(
       update.paymentConfirmed = Boolean(body.paymentConfirmed);
     }
 
-    const doc = await RegistrationModel.findByIdAndUpdate(params.id, update, {
+    const doc = await RegistrationModel.findByIdAndUpdate(id, update, {
       new: true,
       runValidators: true,
     }).lean();
@@ -209,23 +212,20 @@ export async function PATCH(
     }
     return NextResponse.json({ success: true, data: doc });
   } catch (e: unknown) {
-    const message = e instanceof Error ? e.message : "Server error";
     console.error("PATCH /registrations/:id", e);
     return NextResponse.json(
-      { success: false, error: message },
+      { success: false, error: errMessage(e) },
       { status: 500 }
     );
   }
 }
 
 /* ---------- DELETE /:id ---------- */
-export async function DELETE(
-  _req: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function DELETE(_req: NextRequest, ctx: ParamsCtx) {
   try {
+    const { id } = await ctx.params;
     await dbConnect();
-    const doc = await RegistrationModel.findByIdAndDelete(params.id);
+    const doc = await RegistrationModel.findByIdAndDelete(id);
     if (!doc) {
       return NextResponse.json(
         { success: false, error: "Registration not found" },
@@ -234,10 +234,9 @@ export async function DELETE(
     }
     return NextResponse.json({ success: true });
   } catch (e: unknown) {
-    const message = e instanceof Error ? e.message : "Server error";
     console.error("DELETE /registrations/:id", e);
     return NextResponse.json(
-      { success: false, error: message },
+      { success: false, error: errMessage(e) },
       { status: 500 }
     );
   }
